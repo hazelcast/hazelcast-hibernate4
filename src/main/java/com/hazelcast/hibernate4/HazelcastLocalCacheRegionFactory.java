@@ -19,13 +19,12 @@ package com.hazelcast.hibernate4;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.hibernate4.local.CleanupService;
 import com.hazelcast.hibernate4.local.LocalRegionCache;
+import com.hazelcast.hibernate4.local.TimestampsRegionCache;
 import com.hazelcast.hibernate4.region.HazelcastCollectionRegion;
 import com.hazelcast.hibernate4.region.HazelcastEntityRegion;
+import com.hazelcast.hibernate4.region.HazelcastTimestampsRegion;
 import org.hibernate.cache.CacheException;
-import org.hibernate.cache.spi.CacheDataDescription;
-import org.hibernate.cache.spi.CollectionRegion;
-import org.hibernate.cache.spi.EntityRegion;
-import org.hibernate.cache.spi.RegionFactory;
+import org.hibernate.cache.spi.*;
 import org.hibernate.cfg.Settings;
 
 import java.util.Properties;
@@ -59,6 +58,12 @@ public class HazelcastLocalCacheRegionFactory extends AbstractHazelcastCacheRegi
                 regionName, properties, metadata, new LocalRegionCache(regionName, instance, metadata));
         cleanupService.registerCache(region.getCache());
         return region;
+    }
+
+    public TimestampsRegion buildTimestampsRegion(final String regionName, final Properties properties)
+            throws CacheException {
+        return new HazelcastTimestampsRegion<LocalRegionCache>(instance, regionName, properties,
+                new TimestampsRegionCache(regionName, instance));
     }
 
     @Override

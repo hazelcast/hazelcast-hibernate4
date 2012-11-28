@@ -5,6 +5,7 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Message;
 import com.hazelcast.core.MessageListener;
+import com.hazelcast.hibernate4.CacheEnvironment;
 import com.hazelcast.hibernate4.RegionCache;
 import com.hazelcast.util.Clock;
 import org.hibernate.cache.spi.CacheDataDescription;
@@ -18,27 +19,30 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * @mdogan 11/9/12
  */
-public class LocalRegionCache implements RegionCache, MessageListener<Invalidation> {
+public class LocalRegionCache implements RegionCache {
 
-    private final ITopic<Invalidation> invalidationTopic;
-    private final ConcurrentMap<Object, Value> cache;
-    private final Comparator versionComparator;
-    private MapConfig config;
+    protected final ITopic<Object> topic;
+    protected final MessageListener<Object> messageListener;
+    protected final ConcurrentMap<Object, Value> cache;
+    protected final Comparator versionComparator;
+    protected MapConfig config;
 
     public LocalRegionCache(final String name, final HazelcastInstance hazelcastInstance,
                             final CacheDataDescription metadata) {
-        if (hazelcastInstance != null) {
-            invalidationTopic = hazelcastInstance.getTopic(name);
-            invalidationTopic.addMessageListener(this);
-        } else {
-            invalidationTopic = null;
-        }
         try {
             config = hazelcastInstance != null ? hazelcastInstance.getConfig().findMatchingMapConfig(name) : null;
         } catch (UnsupportedOperationException ignored) {
         }
         versionComparator = metadata != null && metadata.isVersioned() ? metadata.getVersionComparator() : null;
         cache = new ConcurrentHashMap<Object, Value>();
+
+        messageListener = createMessageListener();
+        if (hazelcastInstance != null) {
+            topic = hazelcastInstance.getTopic(name);
+            topic.addMessageListener(messageListener);
+        } else {
+            topic = null;
+        }
     }
 
     public Object get(final Object key) {
@@ -63,12 +67,39 @@ public class LocalRegionCache implements RegionCache, MessageListener<Invalidati
                 return false;
             }
         }
-
-        if (invalidationTopic != null) {
-            invalidationTopic.publish(new Invalidation(key, currentVersion));
+        if (topic != null) {
+            topic.publish(createMessage(key, value, currentVersion));
         }
         cache.put(key, new Value(currentVersion, value, lock, Clock.currentTimeMillis()));
         return true;
+    }
+
+    protected Object createMessage(final Object key, Object value, final Object currentVersion) {
+        return new Invalidation(key, currentVersion);
+    }
+
+    protected MessageListener<Object> createMessageListener() {
+        return new MessageListener<Object>() {
+            public void onMessage(final Message<Object> message) {
+                final Invalidation invalidation = (Invalidation) message.getMessageObject();
+//        System.out.println("invalidation = " + invalidation);
+                if (versionComparator != null) {
+                    final Value value = cache.get(invalidation.getKey());
+                    if (value != null) {
+                        Object currentVersion = value.getVersion();
+                        Object newVersion = invalidation.getVersion();
+//                System.out.println("currentVersion = " + currentVersion + " -> newVersion = " + newVersion);
+                        if (versionComparator.compare(newVersion, currentVersion) > 0) {
+//                    System.out.println("Invalidating... " + invalidation);
+                            cache.remove(invalidation.getKey(), value);
+                        }
+                    }
+                } else {
+//            System.out.println("Invalidating XXX ... " + invalidation);
+                    cache.remove(invalidation.getKey());
+                }
+            }
+        };
     }
 
     public boolean remove(final Object key) {
@@ -158,42 +189,44 @@ public class LocalRegionCache implements RegionCache, MessageListener<Invalidati
     }
 
     void cleanup() {
+        final int maxSize;
+        final long timeToLive;
         if (config != null) {
-            final int maxSize = config.getMaxSizeConfig().getSize();
-            final long timeToLive = config.getTimeToLiveSeconds() * 1000L;
-//            final int maxIdleSeconds = config.getMaxIdleSeconds();
+            maxSize = config.getMaxSizeConfig().getSize();
+            timeToLive = config.getTimeToLiveSeconds() * 1000L;
+        } else {
+            maxSize = 100000;
+            timeToLive = CacheEnvironment.getDefaultCacheTimeoutInMillis();
+        }
 
-            if ((maxSize > 0 && maxSize != Integer.MAX_VALUE)
-                || timeToLive > 0
-                /*|| maxIdleSeconds > 0 */) {
-
-                final Iterator<Entry<Object, Value>> iter = cache.entrySet().iterator();
-                SortedSet<EvictionEntry> entries = null;
-                final long now = Clock.currentTimeMillis();
-                while (iter.hasNext()) {
-                    final Entry<Object, Value> e = iter.next();
-                    final Object k = e.getKey();
-                    final Value v = e.getValue();
-                    if (v.getLock() == LOCK_SUCCESS) {
-                        continue;
-                    }
-                    if (v.getCreationTime() + timeToLive > now) {
-                        iter.remove();
-                    } else if (maxSize > 0 && maxSize != Integer.MAX_VALUE) {
-                        if (entries == null) {
-                            entries = new TreeSet<EvictionEntry>();
-                        }
-                        entries.add(new EvictionEntry(k, v));
-                    }
+        if ((maxSize > 0 && maxSize != Integer.MAX_VALUE) || timeToLive > 0) {
+            final Iterator<Entry<Object, Value>> iter = cache.entrySet().iterator();
+            SortedSet<EvictionEntry> entries = null;
+            final long now = Clock.currentTimeMillis();
+            while (iter.hasNext()) {
+                final Entry<Object, Value> e = iter.next();
+                final Object k = e.getKey();
+                final Value v = e.getValue();
+                if (v.getLock() == LOCK_SUCCESS) {
+                    continue;
                 }
-                final int k = cache.size() - maxSize;
-                if (k > 0 && entries != null) {
-                    int i = 0;
-                    for (EvictionEntry entry : entries) {
-                        if (cache.remove(entry.key, entry.value)) {
-                            if (++i == k) {
-                                break;
-                            }
+                if (v.getCreationTime() + timeToLive > now) {
+                    iter.remove();
+                } else if (maxSize > 0 && maxSize != Integer.MAX_VALUE) {
+                    if (entries == null) {
+                        entries = new TreeSet<EvictionEntry>();
+                    }
+                    entries.add(new EvictionEntry(k, v));
+                }
+            }
+            final int diff = cache.size() - maxSize;
+            final int k = diff >= 0 ? (diff + maxSize * 20 / 100) : 0;
+            if (k > 0 && entries != null) {
+                int i = 0;
+                for (EvictionEntry entry : entries) {
+                    if (cache.remove(entry.key, entry.value)) {
+                        if (++i == k) {
+                            break;
                         }
                     }
                 }

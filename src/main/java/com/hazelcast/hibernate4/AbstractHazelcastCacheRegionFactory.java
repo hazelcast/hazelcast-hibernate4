@@ -21,11 +21,13 @@ import com.hazelcast.hibernate4.instance.HazelcastInstanceFactory;
 import com.hazelcast.hibernate4.instance.IHazelcastInstanceLoader;
 import com.hazelcast.hibernate4.region.HazelcastNaturalIdRegion;
 import com.hazelcast.hibernate4.region.HazelcastQueryResultsRegion;
-import com.hazelcast.hibernate4.region.HazelcastTimestampsRegion;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
 import org.hibernate.cache.CacheException;
-import org.hibernate.cache.spi.*;
+import org.hibernate.cache.spi.CacheDataDescription;
+import org.hibernate.cache.spi.NaturalIdRegion;
+import org.hibernate.cache.spi.QueryResultsRegion;
+import org.hibernate.cache.spi.RegionFactory;
 import org.hibernate.cache.spi.access.AccessType;
 import org.hibernate.cfg.Settings;
 
@@ -53,11 +55,6 @@ public abstract class AbstractHazelcastCacheRegionFactory implements RegionFacto
     public final QueryResultsRegion buildQueryResultsRegion(final String regionName, final Properties properties)
             throws CacheException {
         return new HazelcastQueryResultsRegion(instance, regionName, properties);
-    }
-
-    public final TimestampsRegion buildTimestampsRegion(final String regionName, final Properties properties)
-            throws CacheException {
-        return new HazelcastTimestampsRegion(instance, regionName, properties);
     }
 
     public NaturalIdRegion buildNaturalIdRegion(final String regionName, final Properties properties, final CacheDataDescription metadata)

@@ -35,7 +35,7 @@ public final class CleanupService {
             public void run() {
                 cache.cleanup();
             }
-        }, 30, 10, TimeUnit.SECONDS);
+        }, 60, 60, TimeUnit.SECONDS);
     }
 
     public void stop() {

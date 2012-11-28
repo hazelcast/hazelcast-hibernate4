@@ -27,6 +27,6 @@ public class HazelcastQueryResultsRegion extends AbstractGeneralRegion<LocalRegi
     public HazelcastQueryResultsRegion(final HazelcastInstance instance, final String name, final Properties props) {
         // Note: We can pass HazelcastInstance as null, because instead of invalidation
         // timestamps cache can take care of outdated queries.
-        super(instance, name, props, new LocalRegionCache(name, instance, null));
+        super(instance, name, props, new LocalRegionCache(name, null, null));
     }
 }

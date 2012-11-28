@@ -17,15 +17,17 @@
 package com.hazelcast.hibernate4.region;
 
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.hibernate4.distributed.IMapRegionCache;
+import com.hazelcast.hibernate4.RegionCache;
 import org.hibernate.cache.spi.TimestampsRegion;
 
 import java.util.Properties;
 
-public class HazelcastTimestampsRegion extends AbstractGeneralRegion<IMapRegionCache> implements TimestampsRegion {
+public class HazelcastTimestampsRegion<Cache extends RegionCache>
+        extends AbstractGeneralRegion<Cache> implements TimestampsRegion {
 
-    public HazelcastTimestampsRegion(final HazelcastInstance instance, final String name, final Properties props) {
-        super(instance, name, props, new IMapRegionCache(name, instance, props, null));
+    public HazelcastTimestampsRegion(final HazelcastInstance instance, final String name,
+                                     final Properties props, final Cache cache) {
+        super(instance, name, props, cache);
     }
 
 }

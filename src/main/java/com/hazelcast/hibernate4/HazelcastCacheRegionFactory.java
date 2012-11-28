@@ -20,11 +20,13 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.hibernate4.distributed.IMapRegionCache;
 import com.hazelcast.hibernate4.region.HazelcastCollectionRegion;
 import com.hazelcast.hibernate4.region.HazelcastEntityRegion;
+import com.hazelcast.hibernate4.region.HazelcastTimestampsRegion;
 import org.hibernate.cache.CacheException;
 import org.hibernate.cache.RegionFactory;
 import org.hibernate.cache.spi.CacheDataDescription;
 import org.hibernate.cache.spi.CollectionRegion;
 import org.hibernate.cache.spi.EntityRegion;
+import org.hibernate.cache.spi.TimestampsRegion;
 
 import java.util.Properties;
 
@@ -51,5 +53,11 @@ public class HazelcastCacheRegionFactory extends AbstractHazelcastCacheRegionFac
                                           final CacheDataDescription metadata) throws CacheException {
         return new HazelcastEntityRegion<IMapRegionCache>(instance, regionName, properties, metadata,
                 new IMapRegionCache(regionName, instance, properties, metadata));
+    }
+
+    public TimestampsRegion buildTimestampsRegion(final String regionName, final Properties properties)
+            throws CacheException {
+        return new HazelcastTimestampsRegion<IMapRegionCache>(instance, regionName, properties,
+                new IMapRegionCache(regionName, instance, properties, null));
     }
 }
