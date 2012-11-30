@@ -38,7 +38,7 @@
         <hibernate.core.version>4.1.0.Final</hibernate.core.version>
         <hsqldb.version>1.8.0.10</hsqldb.version>
         <javaassist.version>3.12.1.GA</javaassist.version>
-        <hazelcast.version>2.4</hazelcast.version>
+        <hazelcast.version>2.3</hazelcast.version>
     </properties>
 
     <repositories>

@@ -20,6 +20,7 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.hibernate4.HazelcastTimestamper;
 import com.hazelcast.hibernate4.RegionCache;
 import com.hazelcast.logging.ILogger;
+import com.hazelcast.logging.Logger;
 import org.hibernate.cache.CacheException;
 
 import java.util.Map;
@@ -103,6 +104,11 @@ abstract class AbstractHazelcastRegion<Cache extends RegionCache> implements Haz
     }
 
     public final ILogger getLogger() {
-        return instance.getLoggingService().getLogger(getClass().getName());
+        final String name = getClass().getName();
+        try {
+            return instance.getLoggingService().getLogger(name);
+        } catch (UnsupportedOperationException e) {
+            return Logger.getLogger(name);
+        }
     }
 }
