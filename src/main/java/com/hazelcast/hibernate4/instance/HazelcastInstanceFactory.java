@@ -24,7 +24,7 @@ import java.util.Properties;
 
 public final class HazelcastInstanceFactory {
 
-    private final static String HZ_CLIENT_LOADER_CLASSNAME = "com.hazelcast.HazelcastClientLoader";
+    private final static String HZ_CLIENT_LOADER_CLASSNAME = "com.hazelcast.hibernate4.instance.HazelcastClientLoader";
     private final static String HZ_INSTANCE_LOADER_CLASSNAME = "com.hazelcast.hibernate4.instance.HazelcastInstanceLoader";
 
     public static HazelcastInstance createInstance(Properties props) throws CacheException {
