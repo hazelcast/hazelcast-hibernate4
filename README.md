@@ -1,3 +1,9 @@
+!!!This repo is outdated.!!!
+======================
+Please check https://github.com/hazelcast/hazelcast-hibernate
+
+---------------------------
+
 Beta implementation of *hazelcast-hibernate* module for Hibernate 4.0.
 
 ###Usage:
